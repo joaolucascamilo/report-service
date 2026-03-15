@@ -27,23 +27,34 @@ public class OcorrenciaController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Ocorrencia>> listarOcorrencias() {
+    public ResponseEntity<List<OcorrenciaResponse>> listarOcorrencias() {
         return ResponseEntity.ok(service.listarTodas());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Ocorrencia> buscarPorId(@PathVariable Long id) {
-        return service.buscarPorId(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<OcorrenciaResponse> buscarPorId(@PathVariable Long id) {
+        try {
+            // Agora o service devolve o DTO
+            OcorrenciaResponse response = service.buscarPorId(id);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            // Se o service lançar a exceção de "não encontrada", devolvemos 404
+            return ResponseEntity.notFound().build();
+        }
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Ocorrencia> atualizarStatus(@PathVariable Long id, @RequestBody String novoStatus) {
+    public ResponseEntity<OcorrenciaResponse> atualizarStatus(@PathVariable Long id, @RequestBody Integer codigoStatus) {
         try {
-            Ocorrencia ocorrenciaAtualizada = service.atualizarStatus(id, novoStatus);
+            OcorrenciaResponse ocorrenciaAtualizada = service.atualizarStatus(id, codigoStatus);
             return ResponseEntity.ok(ocorrenciaAtualizada);
+
+        } catch (IllegalArgumentException e) {
+            // Cai aqui se o frontend mandar um código de status que não existe no Enum (ex: 99)
+            return ResponseEntity.badRequest().build();
+
         } catch (RuntimeException e) {
+            // Cai aqui se o ID da ocorrência não for encontrado no banco
             return ResponseEntity.notFound().build();
         }
     }

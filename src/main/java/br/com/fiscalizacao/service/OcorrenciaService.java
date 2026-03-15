@@ -8,6 +8,8 @@ import br.com.fiscalizacao.entity.Endereco;
 import br.com.fiscalizacao.entity.FotoOcorrencia;
 import br.com.fiscalizacao.entity.Ocorrencia;
 import br.com.fiscalizacao.entity.Usuario;
+import br.com.fiscalizacao.enums.StatusOcorrencia;
+import br.com.fiscalizacao.enums.TipoOcorrencia;
 import br.com.fiscalizacao.repository.OcorrenciaRepository;
 import br.com.fiscalizacao.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
@@ -35,8 +37,8 @@ public class OcorrenciaService {
     public OcorrenciaResponse registrar(OcorrenciaRequest ocorrenciaRequest) {
         // 1. Buscar o usuário no banco de dados pelo ID enviado no Request
         Usuario usuario;
-        if (ocorrenciaRequest.getUsuario() != null && ocorrenciaRequest.getUsuario().getId() != null) {
-            usuario = usuarioRepository.findById(ocorrenciaRequest.getUsuario().getId())
+        if (ocorrenciaRequest.getUsuarioId() != null) {
+            usuario = usuarioRepository.findById(ocorrenciaRequest.getUsuarioId())
                     .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
         } else {
             throw new RuntimeException("Usuário ou ID nulo");
@@ -44,8 +46,13 @@ public class OcorrenciaService {
 
         Endereco endereco = converteEnderecoRequestParaEndereco(ocorrenciaRequest);
 
-        Ocorrencia ocorrencia = new Ocorrencia(LocalDateTime.now(), endereco, usuario);
-        ocorrencia.setStatus("REGISTRADO");
+        Ocorrencia ocorrencia = Ocorrencia.builder()
+                .data(LocalDateTime.now())
+                .endereco(endereco)
+                .usuario(usuario)
+                .status(StatusOcorrencia.REGISTRADO)
+                .tipo(TipoOcorrencia.valueOf(ocorrenciaRequest.getTipoOcorrencia()))
+                .build();
 
         //Lidar com as fotos, se a lista não for nula ou vazia
         if (ocorrenciaRequest.getFotoOcorrencia() != null && !ocorrenciaRequest.getFotoOcorrencia().isEmpty()) {
@@ -77,19 +84,31 @@ public class OcorrenciaService {
         return endereco;
     }
 
-    public List<Ocorrencia> listarTodas() {
-        return ocorrenciaRepository.findAll();
+    public List<OcorrenciaResponse> listarTodas() {
+        List<Ocorrencia> ocorrencias = ocorrenciaRepository.findAll();
+        return ocorrencias.stream()
+                .map(this::converterParaResponse)
+                .toList();
     }
 
-    public Optional<Ocorrencia> buscarPorId(Long id) {
-        return ocorrenciaRepository.findById(id);
+    public OcorrenciaResponse buscarPorId(Long id) {
+        Ocorrencia ocorrencia = ocorrenciaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ocorrência não encontrada com o ID: " + id));
+        return converterParaResponse(ocorrencia);
     }
 
-    public Ocorrencia atualizarStatus(Long id, String novoStatus) {
-        return ocorrenciaRepository.findById(id).map(ocorrencia -> {
-            ocorrencia.setStatus(novoStatus);
+    public OcorrenciaResponse atualizarStatus(Long id, Integer codigoStatus) {
+
+        // Converte o número que veio do frontend para o Enum correspondente
+        StatusOcorrencia novoStatusEnum = StatusOcorrencia.valueOf(codigoStatus);
+
+        Ocorrencia ocorrenciaAtualizada = ocorrenciaRepository.findById(id).map(ocorrencia -> {
+            ocorrencia.setStatus(novoStatusEnum);
             return ocorrenciaRepository.save(ocorrencia);
-        }).orElseThrow(() -> new RuntimeException("Ocorrência não encontrada!"));
+        }).orElseThrow(() -> new RuntimeException("Ocorrência não encontrada com o ID: " + id));
+
+        // Passa a entidade atualizada pelo método de conversão e devolve o DTO
+        return converterParaResponse(ocorrenciaAtualizada);
     }
 
     public void deletar(Long id) {
@@ -101,10 +120,17 @@ public class OcorrenciaService {
         OcorrenciaResponse response = new OcorrenciaResponse();
         response.setId(ocorrencia.getId());
         response.setData(ocorrencia.getData());
-        response.setStatus(ocorrencia.getStatus());
+        response.setStatus(ocorrencia.getStatus().getCodigo());
 
         // Aqui evitamos expor todos os dados do usuário, mandando apenas o nome
         response.setNomeUsuario(ocorrencia.getUsuario().getNome());
+        List<OcorrenciaResponse.FotoResponse> fotosResponse = null;
+        if (ocorrencia.getFotos() != null && !ocorrencia.getFotos().isEmpty()) {
+            fotosResponse = ocorrencia.getFotos().stream()
+                    .map(this::converterParaFotoResponse) // Chama aquele método que criamos para cada foto da lista
+                    .toList();
+        }
+        response.setFotos(fotosResponse);
 
         // Convertendo o endereço
         EnderecoResponse endRes = new EnderecoResponse();
@@ -118,5 +144,15 @@ public class OcorrenciaService {
         response.setEndereco(endRes);
 
         return response;
+    }
+
+    // Método auxiliar para converter uma única FotoOcorrencia (Entidade) para FotoResponse (DTO)
+    private OcorrenciaResponse.FotoResponse converterParaFotoResponse(FotoOcorrencia foto) {
+        if (foto == null) return null;
+
+        return OcorrenciaResponse.FotoResponse.builder()
+                .id(foto.getId())
+                .url(foto.getUrl())
+                .build();
     }
 }

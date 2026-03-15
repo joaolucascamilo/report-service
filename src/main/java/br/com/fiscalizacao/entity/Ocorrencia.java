@@ -1,9 +1,9 @@
 package br.com.fiscalizacao.entity;
 
+import br.com.fiscalizacao.enums.StatusOcorrencia;
+import br.com.fiscalizacao.enums.TipoOcorrencia;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -14,6 +14,8 @@ import java.util.List;
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Ocorrencia {
 
     @Id
@@ -27,15 +29,17 @@ public class Ocorrencia {
     @JoinColumn(name = "endereco_id", nullable = false)
     private Endereco endereco;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status;
+    private StatusOcorrencia status;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Integer tipo;
+    private TipoOcorrencia tipo;
 
     // relacionamento com fotos
     @OneToMany(
@@ -44,20 +48,12 @@ public class Ocorrencia {
             orphanRemoval = true,
             fetch = FetchType.LAZY
     )
-    private List<FotoOcorrencia> fotos = new ArrayList<>();
-
-    public Ocorrencia() {
-    }
-
-    public Ocorrencia(LocalDateTime data, Endereco endereco, Usuario usuario) {
-        this.data = data;
-        this.endereco = endereco;
-        this.usuario = usuario;
-    }
+    private List<FotoOcorrencia> fotos;
 
     // helper para manter consistência do relacionamento
     public void adicionarFoto(FotoOcorrencia foto) {
         foto.setOcorrencia(this);
+        this.fotos = new ArrayList<FotoOcorrencia>();
         this.fotos.add(foto);
     }
 

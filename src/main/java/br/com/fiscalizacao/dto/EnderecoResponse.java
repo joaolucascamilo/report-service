@@ -1,13 +1,12 @@
 package br.com.fiscalizacao.dto;
 
-import br.com.fiscalizacao.entity.Endereco;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class EnderecoResponse {
     private String rua;
     private Integer numero;
@@ -16,5 +15,4 @@ public class EnderecoResponse {
     private String estado;
     private Integer cep;
 
-    public EnderecoResponse() {}
 }
