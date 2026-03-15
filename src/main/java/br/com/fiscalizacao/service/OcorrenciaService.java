@@ -44,6 +44,8 @@ public class OcorrenciaService {
             throw new RuntimeException("Usuário ou ID nulo");
         }
 
+        validaDuplicidadeOcorrencia(ocorrenciaRequest);
+
         Endereco endereco = converteEnderecoRequestParaEndereco(ocorrenciaRequest);
 
         Ocorrencia ocorrencia = Ocorrencia.builder()
@@ -71,6 +73,27 @@ public class OcorrenciaService {
         Ocorrencia ocorrenciaSalva = ocorrenciaRepository.save(ocorrencia);
 
         return converterParaResponse(ocorrenciaSalva);
+    }
+
+    private void validaDuplicidadeOcorrencia(OcorrenciaRequest ocorrenciaRequest) {
+        TipoOcorrencia tipoDaNovaOcorrencia = TipoOcorrencia.valueOf(ocorrenciaRequest.getTipoOcorrencia());
+
+        List<StatusOcorrencia> statusAbertos = List.of(
+                StatusOcorrencia.REGISTRADO,
+                StatusOcorrencia.EM_PROCEDIMENTO
+        );
+
+        // Verifica no banco de dados se já existe duplicidade
+        boolean isDuplicado = ocorrenciaRepository.existeOcorrenciaPendenteNoLocal(
+                tipoDaNovaOcorrencia,
+                statusAbertos,
+                ocorrenciaRequest.getEnderecoOcorrencia().getCep(),
+                ocorrenciaRequest.getEnderecoOcorrencia().getRua()
+        );
+
+        if (isDuplicado) {
+            throw new IllegalArgumentException("Já existe um problema deste tipo reportado neste endereço que ainda está aguardando solução.");
+        }
     }
 
     private static Endereco converteEnderecoRequestParaEndereco(OcorrenciaRequest ocorrenciaRequest) {
