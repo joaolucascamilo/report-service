@@ -2,10 +2,10 @@ package br.com.fiscalizacao.controller;
 
 import br.com.fiscalizacao.dto.OcorrenciaRequest;
 import br.com.fiscalizacao.dto.OcorrenciaResponse;
-import br.com.fiscalizacao.entity.Ocorrencia;
 import br.com.fiscalizacao.service.OcorrenciaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,27 +20,37 @@ public class OcorrenciaController {
         this.service = service;
     }
 
+    /**
+     * Pega o ID do usuário diretamente do Token JWT que foi interceptado pelo SecurityFilter
+     */
+    private Long getUsuarioIdAutenticado() {
+        return (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
+
+    /**
+     * ROTAS DO CIDADÃO (Exige perfil ROLE_CIDADAO no SecurityConfig)
+     */
+
     @PostMapping
     public ResponseEntity<OcorrenciaResponse> registrarOcorrencia(@RequestBody OcorrenciaRequest ocorrencia) {
         OcorrenciaResponse novaOcorrencia = service.registrar(ocorrencia);
         return new ResponseEntity<>(novaOcorrencia, HttpStatus.CREATED);
     }
 
+    @GetMapping("/minhas")
+    public ResponseEntity<List<OcorrenciaResponse>> listarMinhasOcorrencias() {
+        Long usuarioId = getUsuarioIdAutenticado();
+
+        return ResponseEntity.ok(service.listarPorUsuarioId(usuarioId));
+    }
+
+    /**
+     * ROTAS DA PREFEITURA / AGENTE (Exige perfil ROLE_AGENTE_PREFEITURA)
+     */
+
     @GetMapping
     public ResponseEntity<List<OcorrenciaResponse>> listarOcorrencias() {
         return ResponseEntity.ok(service.listarTodas());
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<OcorrenciaResponse> buscarPorId(@PathVariable Long id) {
-        try {
-            // Agora o service devolve o DTO
-            OcorrenciaResponse response = service.buscarPorId(id);
-            return ResponseEntity.ok(response);
-        } catch (RuntimeException e) {
-            // Se o service lançar a exceção de "não encontrada", devolvemos 404
-            return ResponseEntity.notFound().build();
-        }
     }
 
     @PutMapping("/{id}/status")
@@ -63,5 +73,26 @@ public class OcorrenciaController {
     public ResponseEntity<Void> deletarOcorrencia(@PathVariable Long id) {
         service.deletar(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * ROTAS PÚBLICAS / COMPARTILHADAS
+     */
+
+    @GetMapping("/mapa")
+    public ResponseEntity<List<OcorrenciaResponse>> listarParaMapa() {
+        // Rota pública para alimentar o mapa do frontend sem exigir login (se desejar)
+        // O ideal é que o service retorne um DTO simplificado apenas com Latitude, Longitude e Status
+        return ResponseEntity.ok(service.listarTodas());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OcorrenciaResponse> buscarPorId(@PathVariable Long id) {
+        try {
+            OcorrenciaResponse response = service.buscarPorId(id);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

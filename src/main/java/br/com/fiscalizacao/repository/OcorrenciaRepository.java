@@ -24,4 +24,8 @@ public interface OcorrenciaRepository extends JpaRepository<Ocorrencia, Long> {
             @Param("cep") Integer cep,
             @Param("rua") String rua
     );
+
+    @Query("SELECT o FROM Ocorrencia o " +
+            "WHERE o.usuarioId = :usuarioId")
+    List<Ocorrencia> findByUsuarioId(@Param("usuarioId") Long usuarioId);
 }

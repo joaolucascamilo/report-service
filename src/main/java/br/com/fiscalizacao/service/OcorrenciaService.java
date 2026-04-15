@@ -7,26 +7,22 @@ import br.com.fiscalizacao.dto.OcorrenciaResponse;
 import br.com.fiscalizacao.entity.Endereco;
 import br.com.fiscalizacao.entity.FotoOcorrencia;
 import br.com.fiscalizacao.entity.Ocorrencia;
-import br.com.fiscalizacao.entity.Usuario;
 import br.com.fiscalizacao.enums.StatusOcorrencia;
 import br.com.fiscalizacao.enums.TipoOcorrencia;
 import br.com.fiscalizacao.repository.OcorrenciaRepository;
-import br.com.fiscalizacao.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class OcorrenciaService {
 
     @Autowired
     private OcorrenciaRepository ocorrenciaRepository;
-    @Autowired
-    private UsuarioRepository usuarioRepository;
 
     // Injeção de dependência via construtor
     public OcorrenciaService(OcorrenciaRepository repository) {
@@ -35,15 +31,6 @@ public class OcorrenciaService {
 
     @Transactional
     public OcorrenciaResponse registrar(OcorrenciaRequest ocorrenciaRequest) {
-        // 1. Buscar o usuário no banco de dados pelo ID enviado no Request
-        Usuario usuario;
-        if (ocorrenciaRequest.getUsuarioId() != null) {
-            usuario = usuarioRepository.findById(ocorrenciaRequest.getUsuarioId())
-                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
-        } else {
-            throw new RuntimeException("Usuário ou ID nulo");
-        }
-
         validaDuplicidadeOcorrencia(ocorrenciaRequest);
 
         Endereco endereco = converteEnderecoRequestParaEndereco(ocorrenciaRequest);
@@ -51,7 +38,7 @@ public class OcorrenciaService {
         Ocorrencia ocorrencia = Ocorrencia.builder()
                 .data(LocalDateTime.now())
                 .endereco(endereco)
-                .usuario(usuario)
+                .usuarioId(ocorrenciaRequest.getUsuarioId())
                 .status(StatusOcorrencia.REGISTRADO)
                 .tipo(TipoOcorrencia.valueOf(ocorrenciaRequest.getTipoOcorrencia()))
                 .build();
@@ -145,8 +132,6 @@ public class OcorrenciaService {
         response.setData(ocorrencia.getData());
         response.setStatus(ocorrencia.getStatus().getCodigo());
 
-        // Aqui evitamos expor todos os dados do usuário, mandando apenas o nome
-        response.setNomeUsuario(ocorrencia.getUsuario().getNome());
         List<OcorrenciaResponse.FotoResponse> fotosResponse = null;
         if (ocorrencia.getFotos() != null && !ocorrencia.getFotos().isEmpty()) {
             fotosResponse = ocorrencia.getFotos().stream()
@@ -177,5 +162,12 @@ public class OcorrenciaService {
                 .id(foto.getId())
                 .url(foto.getUrl())
                 .build();
+    }
+
+    public @Nullable List<OcorrenciaResponse> listarPorUsuarioId(Long usuarioId) {
+        List<Ocorrencia> ocorrencias = ocorrenciaRepository.findByUsuarioId(usuarioId);
+        return ocorrencias.stream()
+                .map(this::converterParaResponse)
+                .toList();
     }
 }

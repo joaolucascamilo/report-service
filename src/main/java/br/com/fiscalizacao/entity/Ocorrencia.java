@@ -29,9 +29,8 @@ public class Ocorrencia {
     @JoinColumn(name = "endereco_id", nullable = false)
     private Endereco endereco;
 
-    @ManyToOne
     @JoinColumn(name = "usuario_id", nullable = false)
-    private Usuario usuario;
+    private Long usuarioId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
