@@ -1,7 +1,8 @@
-package com.usuario.config;
+package br.com.fiscalizacao.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -26,9 +27,18 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable()) // Desabilitamos CSRF pois o JWT já protege contra isso
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/**").permitAll() // Login e Cadastro de Cidadão liberados
-                        .requestMatchers("/api/usuarios/registrar-agente").hasRole("AGENTE_PREFEITURA") // Só Agentes entram aqui
-                        .anyRequest().authenticated() // Qualquer outra requisição precisará do token
+                        // Rotas exclusivas da Prefeitura
+                        .requestMatchers(HttpMethod.GET, "/api/ocorrencias/todas").hasRole("AGENTE_PREFEITURA")
+                        .requestMatchers(HttpMethod.PUT, "/api/ocorrencias/{id}/status").hasRole("AGENTE_PREFEITURA")
+
+                        // Rotas exclusivas do Cidadão
+                        .requestMatchers(HttpMethod.POST, "/api/ocorrencias").hasRole("CIDADAO")
+                        .requestMatchers(HttpMethod.GET, "/api/ocorrencias/minhas").hasRole("CIDADAO")
+
+                        // Mapa público (opcional: se qualquer pessoa puder ver o mapa sem logar)
+                        .requestMatchers(HttpMethod.GET, "/api/ocorrencias/mapa").permitAll()
+
+                        .anyRequest().authenticated()
                 )
         // Coloca o nosso filtro antes do filtro padrão do Spring
         .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class);

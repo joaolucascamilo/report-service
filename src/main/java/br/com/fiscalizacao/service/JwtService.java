@@ -1,4 +1,4 @@
-package com.usuario.service;
+package br.com.fiscalizacao.service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -40,6 +40,14 @@ public class JwtService {
 
     public String extrairEmail(String token) {
         return extrairTodasClaims(token).getSubject();
+    }
+
+    public String extrairPerfil(String token) {
+        return extrairTodasClaims(token).get("perfil", String.class);
+    }
+
+    public Long extrairIdUsuario(String token) {
+        return extrairTodasClaims(token).get("id", Long.class);
     }
 
     private Claims extrairTodasClaims(String token) {
