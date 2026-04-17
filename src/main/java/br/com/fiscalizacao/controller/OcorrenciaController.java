@@ -33,7 +33,11 @@ public class OcorrenciaController {
 
     @PostMapping
     public ResponseEntity<OcorrenciaResponse> registrarOcorrencia(@RequestBody OcorrenciaRequest ocorrencia) {
-        OcorrenciaResponse novaOcorrencia = service.registrar(ocorrencia);
+        // Injetamos o ID do usuário autenticado para garantir que ele é o dono do registro
+        Long usuarioId = getUsuarioIdAutenticado();
+
+        // Passamos o usuarioId para o service salvar junto com a ocorrência
+        OcorrenciaResponse novaOcorrencia = service.registrar(ocorrencia, usuarioId);
         return new ResponseEntity<>(novaOcorrencia, HttpStatus.CREATED);
     }
 

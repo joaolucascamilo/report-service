@@ -30,7 +30,7 @@ public class OcorrenciaService {
     }
 
     @Transactional
-    public OcorrenciaResponse registrar(OcorrenciaRequest ocorrenciaRequest) {
+    public OcorrenciaResponse registrar(OcorrenciaRequest ocorrenciaRequest, Long usuarioId) {
         validaDuplicidadeOcorrencia(ocorrenciaRequest);
 
         Endereco endereco = converteEnderecoRequestParaEndereco(ocorrenciaRequest);
@@ -38,7 +38,7 @@ public class OcorrenciaService {
         Ocorrencia ocorrencia = Ocorrencia.builder()
                 .data(LocalDateTime.now())
                 .endereco(endereco)
-                .usuarioId(ocorrenciaRequest.getUsuarioId())
+                .usuarioId(usuarioId)
                 .status(StatusOcorrencia.REGISTRADO)
                 .tipo(TipoOcorrencia.valueOf(ocorrenciaRequest.getTipoOcorrencia()))
                 .build();
