@@ -58,9 +58,9 @@ public class OcorrenciaController {
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<OcorrenciaResponse> atualizarStatus(@PathVariable Long id, @RequestBody Integer codigoStatus) {
+    public ResponseEntity<OcorrenciaResponse> atualizarStatus(@PathVariable Long id, @RequestBody Integer codigoStatus, @RequestHeader("Authorization") String token) {
         try {
-            OcorrenciaResponse ocorrenciaAtualizada = service.atualizarStatus(id, codigoStatus);
+            OcorrenciaResponse ocorrenciaAtualizada = service.atualizarStatus(id, codigoStatus, token);
             return ResponseEntity.ok(ocorrenciaAtualizada);
 
         } catch (IllegalArgumentException e) {

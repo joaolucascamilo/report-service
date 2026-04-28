@@ -1,5 +1,7 @@
 package br.com.fiscalizacao.service;
 
+import br.com.fiscalizacao.client.PontuacaoRequestDTO;
+import br.com.fiscalizacao.client.UserClient;
 import br.com.fiscalizacao.dto.EnderecoResponse;
 import br.com.fiscalizacao.dto.FotoOcorrenciaRequest;
 import br.com.fiscalizacao.dto.OcorrenciaRequest;
@@ -24,9 +26,12 @@ public class OcorrenciaService {
     @Autowired
     private OcorrenciaRepository ocorrenciaRepository;
 
+    private final UserClient userClient;
+
     // Injeção de dependência via construtor
-    public OcorrenciaService(OcorrenciaRepository repository) {
+    public OcorrenciaService(OcorrenciaRepository repository, UserClient userClient) {
         this.ocorrenciaRepository = repository;
+        this.userClient = userClient;
     }
 
     @Transactional
@@ -107,7 +112,7 @@ public class OcorrenciaService {
         return converterParaResponse(ocorrencia);
     }
 
-    public OcorrenciaResponse atualizarStatus(Long id, Integer codigoStatus) {
+    public OcorrenciaResponse atualizarStatus(Long id, Integer codigoStatus, String tokenAgente) {
 
         // Converte o número que veio do frontend para o Enum correspondente
         StatusOcorrencia novoStatusEnum = StatusOcorrencia.valueOf(codigoStatus);
@@ -116,6 +121,22 @@ public class OcorrenciaService {
             ocorrencia.setStatus(novoStatusEnum);
             return ocorrenciaRepository.save(ocorrencia);
         }).orElseThrow(() -> new RuntimeException("Ocorrência não encontrada com o ID: " + id));
+
+        if (codigoStatus.equals(StatusOcorrencia.RESOLVIDO.getCodigo())) {
+            try {
+                PontuacaoRequestDTO pontuacao = new PontuacaoRequestDTO(
+                        ocorrenciaAtualizada.getUsuarioId(), // O ID do cidadão que abriu a ocorrência
+                        50, // 50 pontos por um problema resolvido!
+                        "Ocorrência ID " + ocorrenciaAtualizada.getId() + " resolvida pela prefeitura."
+                );
+
+                // Faz a chamada HTTP para o user-service porta 8082
+                userClient.pontuarUsuario(pontuacao, tokenAgente);
+
+            } catch (Exception e) {
+                System.err.println("Erro ao atribuir pontos: " + e.getMessage());
+            }
+        }
 
         // Passa a entidade atualizada pelo método de conversão e devolve o DTO
         return converterParaResponse(ocorrenciaAtualizada);
