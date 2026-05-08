@@ -37,6 +37,7 @@ public class SecurityConfig {
 
                         // Mapa público (opcional: se qualquer pessoa puder ver o mapa sem logar)
                         .requestMatchers(HttpMethod.GET, "/api/ocorrencias/mapa").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/ocorrencias/{id}").permitAll()
 
                         .anyRequest().authenticated()
                 )
