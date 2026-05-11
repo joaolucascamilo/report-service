@@ -12,7 +12,6 @@ import java.util.List;
 @NoArgsConstructor
 public class OcorrenciaRequest {
 
-    private Long usuarioId;
     private Endereco enderecoOcorrencia;
     private Integer tipoOcorrencia;
     private List<FotoOcorrenciaRequest> fotoOcorrencia;
