@@ -40,6 +40,10 @@ public class Ocorrencia {
     @Column(nullable = false)
     private TipoOcorrencia tipo;
 
+    private String nivelPrioridade;
+
+    private Integer quantidadeDenuncias;
+
     // relacionamento com fotos
     @OneToMany(
             mappedBy = "ocorrencia",
@@ -49,10 +53,14 @@ public class Ocorrencia {
     )
     private List<FotoOcorrencia> fotos;
 
-    // helper para manter consistência do relacionamento
+    private Double latitude;
+    private Double longitude;
+
     public void adicionarFoto(FotoOcorrencia foto) {
+        if (this.fotos == null) {
+            this.fotos = new ArrayList<>(); // <- inicializa só se nula
+        }
         foto.setOcorrencia(this);
-        this.fotos = new ArrayList<FotoOcorrencia>();
         this.fotos.add(foto);
     }
 

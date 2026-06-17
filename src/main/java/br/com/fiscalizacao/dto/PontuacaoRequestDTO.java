@@ -1,4 +1,4 @@
-package br.com.fiscalizacao.client;
+package br.com.fiscalizacao.dto;
 
 public class PontuacaoRequestDTO {
     private Long usuarioId;

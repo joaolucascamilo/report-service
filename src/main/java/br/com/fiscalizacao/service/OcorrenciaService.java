@@ -1,11 +1,9 @@
 package br.com.fiscalizacao.service;
 
-import br.com.fiscalizacao.client.PontuacaoRequestDTO;
+import br.com.fiscalizacao.client.GeoClient;
+import br.com.fiscalizacao.client.PriorizacaoClient;
 import br.com.fiscalizacao.client.UserClient;
-import br.com.fiscalizacao.dto.EnderecoResponse;
-import br.com.fiscalizacao.dto.FotoOcorrenciaRequest;
-import br.com.fiscalizacao.dto.OcorrenciaRequest;
-import br.com.fiscalizacao.dto.OcorrenciaResponse;
+import br.com.fiscalizacao.dto.*;
 import br.com.fiscalizacao.entity.Endereco;
 import br.com.fiscalizacao.entity.FotoOcorrencia;
 import br.com.fiscalizacao.entity.Ocorrencia;
@@ -28,10 +26,16 @@ public class OcorrenciaService {
 
     private final UserClient userClient;
 
+    private final GeoClient geoClient;
+
+    private final PriorizacaoClient  priorizacaoClient;
+
     // Injeção de dependência via construtor
-    public OcorrenciaService(OcorrenciaRepository repository, UserClient userClient) {
+    public OcorrenciaService(OcorrenciaRepository repository, UserClient userClient, GeoClient geoClient, PriorizacaoClient priorizacaoClient) {
         this.ocorrenciaRepository = repository;
         this.userClient = userClient;
+        this.geoClient = geoClient;
+        this.priorizacaoClient = priorizacaoClient;
     }
 
     @Transactional
@@ -46,23 +50,69 @@ public class OcorrenciaService {
                 .usuarioId(usuarioId)
                 .status(StatusOcorrencia.REGISTRADO)
                 .tipo(TipoOcorrencia.valueOf(ocorrenciaRequest.getTipoOcorrencia()))
+                .latitude(ocorrenciaRequest.getLatitude())
+                .longitude(ocorrenciaRequest.getLongitude())
                 .build();
 
-        //Lidar com as fotos, se a lista não for nula ou vazia
         if (ocorrenciaRequest.getFotoOcorrencia() != null && !ocorrenciaRequest.getFotoOcorrencia().isEmpty()) {
             for (FotoOcorrenciaRequest fotoReq : ocorrenciaRequest.getFotoOcorrencia()) {
-                // Instancia a entidade usando o construtor da sua classe
                 FotoOcorrencia foto = new FotoOcorrencia(
                         fotoReq.getNomeArquivo(),
                         fotoReq.getUrl(),
                         fotoReq.getBucket()
                 );
-                // Usa o seu helper method para amarrar os dois lados do relacionamento
                 ocorrencia.adicionarFoto(foto);
             }
         }
 
         Ocorrencia ocorrenciaSalva = ocorrenciaRepository.save(ocorrencia);
+
+        // Monta o DTO para o ms-geo
+        OcorrenciaGeoDTO geoDTO = new OcorrenciaGeoDTO();
+        geoDTO.setId(ocorrenciaSalva.getId());
+        geoDTO.setCategoria(ocorrenciaSalva.getTipo().getDescricao());
+        geoDTO.setStatus(StatusOcorrencia.REGISTRADO.getDescricao());
+        geoDTO.setQuantidadeDenuncias(1);
+        geoDTO.setDataCriacao(ocorrenciaSalva.getData());
+
+        // Decide o caminho: coordenadas diretas OU endereço para geocodificar
+        if (ocorrenciaRequest.getLatitude() != null && ocorrenciaRequest.getLongitude() != null) {
+            geoDTO.setLatitude(ocorrenciaRequest.getLatitude());
+            geoDTO.setLongitude(ocorrenciaRequest.getLongitude());
+        } else {
+            // Passa o endereço para o ms-geo geocodificar via Nominatim
+            EnderecoRequest end = ocorrenciaRequest.getEnderecoOcorrencia();
+            geoDTO.setRua(end.getRua());
+            geoDTO.setBairro(end.getBairro());
+            geoDTO.setCidade(end.getCidade());
+            geoDTO.setEstado(end.getEstado());
+            geoDTO.setPais("Brasil");
+        }
+
+        try {
+            geoClient.registrarNoMapa(geoDTO);
+        } catch (Exception e) {
+            // Não deixa a ocorrência falhar se o ms-geo estiver fora do ar
+            System.err.println("Erro ao notificar ms-geo: " + e.getMessage());
+        }
+
+        // Após salvar a ocorrência
+        OcorrenciaPriorizacaoDTO priorizacaoDTO = new OcorrenciaPriorizacaoDTO(
+                ocorrenciaSalva.getId(),
+                ocorrenciaSalva.getTipo().name(),
+                1,
+                ocorrenciaSalva.getData(),
+                ocorrenciaRequest.getLatitude(),
+                ocorrenciaRequest.getLongitude()
+        );
+
+        try {
+            PrioridadeResponseDTO prioridade = priorizacaoClient.calcularPrioridade(priorizacaoDTO);
+            ocorrenciaSalva.setNivelPrioridade(prioridade.getNivelPrioridade().name());
+            ocorrenciaRepository.save(ocorrenciaSalva);
+        } catch (Exception e) {
+            System.err.println("Erro ao calcular prioridade: " + e.getMessage());
+        }
 
         return converterParaResponse(ocorrenciaSalva);
     }
@@ -89,13 +139,14 @@ public class OcorrenciaService {
     }
 
     private static Endereco converteEnderecoRequestParaEndereco(OcorrenciaRequest ocorrenciaRequest) {
+        EnderecoRequest endReq = ocorrenciaRequest.getEnderecoOcorrencia();
         Endereco endereco = new Endereco();
-        endereco.setCep(ocorrenciaRequest.getEnderecoOcorrencia().getCep());
-        endereco.setRua(ocorrenciaRequest.getEnderecoOcorrencia().getRua());
-        endereco.setNumero(ocorrenciaRequest.getEnderecoOcorrencia().getNumero());
-        endereco.setBairro(ocorrenciaRequest.getEnderecoOcorrencia().getBairro());
-        endereco.setCidade(ocorrenciaRequest.getEnderecoOcorrencia().getCidade());
-        endereco.setEstado(ocorrenciaRequest.getEnderecoOcorrencia().getEstado());
+        endereco.setCep(endReq.getCep());
+        endereco.setRua(endReq.getRua());
+        endereco.setNumero(endReq.getNumero());
+        endereco.setBairro(endReq.getBairro());
+        endereco.setCidade(endReq.getCidade());
+        endereco.setEstado(endReq.getEstado());
         return endereco;
     }
 
@@ -114,7 +165,6 @@ public class OcorrenciaService {
 
     public OcorrenciaResponse atualizarStatus(Long id, Integer codigoStatus, String tokenAgente) {
 
-        // Converte o número que veio do frontend para o Enum correspondente
         StatusOcorrencia novoStatusEnum = StatusOcorrencia.valueOf(codigoStatus);
 
         Ocorrencia ocorrenciaAtualizada = ocorrenciaRepository.findById(id).map(ocorrencia -> {
@@ -122,23 +172,41 @@ public class OcorrenciaService {
             return ocorrenciaRepository.save(ocorrencia);
         }).orElseThrow(() -> new RuntimeException("Ocorrência não encontrada com o ID: " + id));
 
+        // Recalcula prioridade sempre que o status muda
+        // (tempo passou, denúncias podem ter aumentado)
+        try {
+            OcorrenciaPriorizacaoDTO dto = new OcorrenciaPriorizacaoDTO(
+                    ocorrenciaAtualizada.getId(),
+                    ocorrenciaAtualizada.getTipo().name(),
+                    ocorrenciaAtualizada.getQuantidadeDenuncias() != null
+                            ? ocorrenciaAtualizada.getQuantidadeDenuncias() : 1,
+                    ocorrenciaAtualizada.getData(),
+                    ocorrenciaAtualizada.getLatitude(),
+                    ocorrenciaAtualizada.getLongitude()
+            );
+            PrioridadeResponseDTO prioridade = priorizacaoClient.recalcularPrioridade(
+                    ocorrenciaAtualizada.getId(), dto
+            );
+            ocorrenciaAtualizada.setNivelPrioridade(prioridade.getNivelPrioridade().name());
+            ocorrenciaRepository.save(ocorrenciaAtualizada);
+        } catch (Exception e) {
+            System.err.println("Erro ao recalcular prioridade: " + e.getMessage());
+        }
+
+        // Pontua o cidadão se resolvido
         if (codigoStatus.equals(StatusOcorrencia.RESOLVIDO.getCodigo())) {
             try {
                 PontuacaoRequestDTO pontuacao = new PontuacaoRequestDTO(
-                        ocorrenciaAtualizada.getUsuarioId(), // O ID do cidadão que abriu a ocorrência
-                        50, // 50 pontos por um problema resolvido!
+                        ocorrenciaAtualizada.getUsuarioId(),
+                        50,
                         "Ocorrência ID " + ocorrenciaAtualizada.getId() + " resolvida pela prefeitura."
                 );
-
-                // Faz a chamada HTTP para o user-service porta 8082
                 userClient.pontuarUsuario(pontuacao, tokenAgente);
-
             } catch (Exception e) {
                 System.err.println("Erro ao atribuir pontos: " + e.getMessage());
             }
         }
 
-        // Passa a entidade atualizada pelo método de conversão e devolve o DTO
         return converterParaResponse(ocorrenciaAtualizada);
     }
 
@@ -152,6 +220,7 @@ public class OcorrenciaService {
         response.setId(ocorrencia.getId());
         response.setData(ocorrencia.getData());
         response.setStatus(ocorrencia.getStatus().getCodigo());
+        response.setNivelPrioridade(ocorrencia.getNivelPrioridade());
 
         List<OcorrenciaResponse.FotoResponse> fotosResponse = null;
         if (ocorrencia.getFotos() != null && !ocorrencia.getFotos().isEmpty()) {

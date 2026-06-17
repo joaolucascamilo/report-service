@@ -12,8 +12,10 @@ import java.util.List;
 @NoArgsConstructor
 public class OcorrenciaRequest {
 
-    private Endereco enderecoOcorrencia;
+    private EnderecoRequest enderecoOcorrencia;
     private Integer tipoOcorrencia;
     private List<FotoOcorrenciaRequest> fotoOcorrencia;
+    private Double latitude;
+    private Double longitude;
 
 }

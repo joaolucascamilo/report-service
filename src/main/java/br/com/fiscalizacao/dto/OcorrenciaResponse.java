@@ -17,6 +17,7 @@ public class OcorrenciaResponse {
     private Integer status;
     private EnderecoResponse endereco;
     private List<FotoResponse> fotos;
+    private String nivelPrioridade;
     @Getter
     @Setter
     @Builder
