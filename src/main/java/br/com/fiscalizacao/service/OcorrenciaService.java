@@ -220,6 +220,8 @@ public class OcorrenciaService {
         response.setId(ocorrencia.getId());
         response.setData(ocorrencia.getData());
         response.setStatus(ocorrencia.getStatus().getCodigo());
+        response.setTipo(ocorrencia.getTipo().getCodigo());
+        response.setDescricaoTipo(ocorrencia.getTipo().getDescricao());
         response.setNivelPrioridade(ocorrencia.getNivelPrioridade());
 
         List<OcorrenciaResponse.FotoResponse> fotosResponse = null;

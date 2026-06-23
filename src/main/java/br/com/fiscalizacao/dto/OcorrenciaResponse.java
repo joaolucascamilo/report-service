@@ -15,6 +15,8 @@ public class OcorrenciaResponse {
     private Long id;
     private LocalDateTime data;
     private Integer status;
+    private Integer tipo;
+    private String descricaoTipo;
     private EnderecoResponse endereco;
     private List<FotoResponse> fotos;
     private String nivelPrioridade;
