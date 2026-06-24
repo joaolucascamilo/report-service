@@ -36,6 +36,7 @@ public class SecurityConfig {
                         // Rotas exclusivas do Cidadão
                         .requestMatchers(HttpMethod.POST, "/api/ocorrencias").hasRole("CIDADAO")
                         .requestMatchers(HttpMethod.GET, "/api/ocorrencias/minhas").hasRole("CIDADAO")
+                        .requestMatchers(HttpMethod.GET, "/api/fotos/presigned-url").hasRole("CIDADAO")
 
                         // Mapa público (opcional: se qualquer pessoa puder ver o mapa sem logar)
                         .requestMatchers(HttpMethod.GET, "/api/ocorrencias/mapa").permitAll()

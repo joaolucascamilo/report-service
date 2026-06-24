@@ -30,12 +30,14 @@ public class OcorrenciaService {
 
     private final PriorizacaoClient  priorizacaoClient;
 
-    // Injeção de dependência via construtor
-    public OcorrenciaService(OcorrenciaRepository repository, UserClient userClient, GeoClient geoClient, PriorizacaoClient priorizacaoClient) {
+    private final S3Service s3Service;
+
+    public OcorrenciaService(OcorrenciaRepository repository, UserClient userClient, GeoClient geoClient, PriorizacaoClient priorizacaoClient, S3Service s3Service) {
         this.ocorrenciaRepository = repository;
         this.userClient = userClient;
         this.geoClient = geoClient;
         this.priorizacaoClient = priorizacaoClient;
+        this.s3Service = s3Service;
     }
 
     @Transactional
@@ -211,6 +213,13 @@ public class OcorrenciaService {
     }
 
     public void deletar(Long id) {
+        Ocorrencia ocorrencia = ocorrenciaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ocorrência não encontrada com o ID: " + id));
+
+        if (ocorrencia.getFotos() != null) {
+            ocorrencia.getFotos().forEach(foto -> s3Service.deletar(foto.getUrl()));
+        }
+
         ocorrenciaRepository.deleteById(id);
     }
 
