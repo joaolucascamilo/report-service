@@ -8,6 +8,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -15,7 +16,7 @@ import java.util.UUID;
 @Service
 public class S3Service {
 
-    @Value("${aws.s3.bucket}")
+    @Value("${aws.bucket}")
     private String bucket;
 
     private final S3Presigner s3Presigner;
@@ -43,6 +44,14 @@ public class S3Service {
         PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(presignRequest);
 
         return new PresignedUrlResponse(presigned.url().toString(), key, bucket);
+    }
+
+    public String gerarUrlLeitura(String key) {
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(60))
+                .getObjectRequest(r -> r.bucket(bucket).key(key))
+                .build();
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 
     public void deletar(String key) {

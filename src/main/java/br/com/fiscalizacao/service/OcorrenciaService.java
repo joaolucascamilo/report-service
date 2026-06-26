@@ -261,7 +261,7 @@ public class OcorrenciaService {
 
         return OcorrenciaResponse.FotoResponse.builder()
                 .id(foto.getId())
-                .url(foto.getUrl())
+                .url(s3Service.gerarUrlLeitura(foto.getUrl()))
                 .build();
     }
 
