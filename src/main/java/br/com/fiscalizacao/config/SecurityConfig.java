@@ -42,6 +42,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/ocorrencias/mapa").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/ocorrencias/{id}").permitAll()
 
+                        // Swagger UI e documentação OpenAPI
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
         // Coloca o nosso filtro antes do filtro padrão do Spring
