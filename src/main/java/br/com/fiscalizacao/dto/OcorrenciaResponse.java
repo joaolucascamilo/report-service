@@ -20,6 +20,7 @@ public class OcorrenciaResponse {
     private EnderecoResponse endereco;
     private List<FotoResponse> fotos;
     private String nivelPrioridade;
+    private String detalhes;
     @Getter
     @Setter
     @Builder

@@ -44,6 +44,8 @@ public class Ocorrencia {
 
     private Integer quantidadeDenuncias;
 
+    private String detalhes;
+
     // relacionamento com fotos
     @OneToMany(
             mappedBy = "ocorrencia",

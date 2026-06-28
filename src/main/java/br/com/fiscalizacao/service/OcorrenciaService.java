@@ -52,6 +52,7 @@ public class OcorrenciaService {
                 .usuarioId(usuarioId)
                 .status(StatusOcorrencia.REGISTRADO)
                 .tipo(TipoOcorrencia.valueOf(ocorrenciaRequest.getTipoOcorrencia()))
+                .detalhes(ocorrenciaRequest.getDetalhes())
                 .latitude(ocorrenciaRequest.getLatitude())
                 .longitude(ocorrenciaRequest.getLongitude())
                 .build();
@@ -232,6 +233,7 @@ public class OcorrenciaService {
         response.setTipo(ocorrencia.getTipo().getCodigo());
         response.setDescricaoTipo(ocorrencia.getTipo().getDescricao());
         response.setNivelPrioridade(ocorrencia.getNivelPrioridade());
+        response.setDetalhes(ocorrencia.getDetalhes());
 
         List<OcorrenciaResponse.FotoResponse> fotosResponse = null;
         if (ocorrencia.getFotos() != null && !ocorrencia.getFotos().isEmpty()) {

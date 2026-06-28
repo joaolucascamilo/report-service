@@ -14,6 +14,7 @@ public class OcorrenciaRequest {
 
     private EnderecoRequest enderecoOcorrencia;
     private Integer tipoOcorrencia;
+    private String detalhes;
     private List<FotoOcorrenciaRequest> fotoOcorrencia;
     private Double latitude;
     private Double longitude;
