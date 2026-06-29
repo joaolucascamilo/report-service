@@ -66,6 +66,9 @@ public class OcorrenciaResponse {
     @Schema(description = "Descrição detalhada do problema", example = "Grande buraco no meio da via, risco de acidente.")
     private String detalhes;
 
+    @Schema(description = "Quantidade total de apoios (denúncias) acumulados nesta ocorrência", example = "3")
+    private Integer quantidadeDenuncias;
+
     @Schema(description = "Foto vinculada à ocorrência")
     @Getter
     @Setter

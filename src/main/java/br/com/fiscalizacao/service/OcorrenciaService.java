@@ -9,6 +9,7 @@ import br.com.fiscalizacao.entity.FotoOcorrencia;
 import br.com.fiscalizacao.entity.Ocorrencia;
 import br.com.fiscalizacao.enums.StatusOcorrencia;
 import br.com.fiscalizacao.enums.TipoOcorrencia;
+import br.com.fiscalizacao.exception.ConflictException;
 import br.com.fiscalizacao.repository.OcorrenciaRepository;
 import jakarta.transaction.Transactional;
 import org.jspecify.annotations.Nullable;
@@ -17,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class OcorrenciaService {
@@ -55,6 +58,7 @@ public class OcorrenciaService {
                 .detalhes(ocorrenciaRequest.getDetalhes())
                 .latitude(ocorrenciaRequest.getLatitude())
                 .longitude(ocorrenciaRequest.getLongitude())
+                .quantidadeDenuncias(1)
                 .build();
 
         if (ocorrenciaRequest.getFotoOcorrencia() != null && !ocorrenciaRequest.getFotoOcorrencia().isEmpty()) {
@@ -213,6 +217,45 @@ public class OcorrenciaService {
         return converterParaResponse(ocorrenciaAtualizada);
     }
 
+    @Transactional
+    public OcorrenciaResponse apoiar(Long id, Long usuarioId) {
+        Ocorrencia ocorrencia = ocorrenciaRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ocorrência não encontrada com o ID: " + id));
+
+        if (ocorrencia.getApoiadores().contains(usuarioId)) {
+            throw new ConflictException("Você já apoiou esta ocorrência.");
+        }
+
+        ocorrencia.getApoiadores().add(usuarioId);
+        int novaQuantidade = (ocorrencia.getQuantidadeDenuncias() != null ? ocorrencia.getQuantidadeDenuncias() : 1) + 1;
+        ocorrencia.setQuantidadeDenuncias(novaQuantidade);
+        ocorrenciaRepository.save(ocorrencia);
+
+        try {
+            geoClient.atualizarApoio(id, Map.of("quantidadeDenuncias", novaQuantidade));
+        } catch (Exception e) {
+            System.err.println("Erro ao notificar ms-geo sobre apoio: " + e.getMessage());
+        }
+
+        try {
+            OcorrenciaPriorizacaoDTO dto = new OcorrenciaPriorizacaoDTO(
+                    ocorrencia.getId(),
+                    ocorrencia.getTipo().name(),
+                    novaQuantidade,
+                    ocorrencia.getData(),
+                    ocorrencia.getLatitude(),
+                    ocorrencia.getLongitude()
+            );
+            PrioridadeResponseDTO prioridade = priorizacaoClient.recalcularPrioridade(ocorrencia.getId(), dto);
+            ocorrencia.setNivelPrioridade(prioridade.getNivelPrioridade().name());
+            ocorrenciaRepository.save(ocorrencia);
+        } catch (Exception e) {
+            System.err.println("Erro ao recalcular prioridade após apoio: " + e.getMessage());
+        }
+
+        return converterParaResponse(ocorrencia);
+    }
+
     public void deletar(Long id) {
         Ocorrencia ocorrencia = ocorrenciaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ocorrência não encontrada com o ID: " + id));
@@ -234,6 +277,7 @@ public class OcorrenciaService {
         response.setDescricaoTipo(ocorrencia.getTipo().getDescricao());
         response.setNivelPrioridade(ocorrencia.getNivelPrioridade());
         response.setDetalhes(ocorrencia.getDetalhes());
+        response.setQuantidadeDenuncias(ocorrencia.getQuantidadeDenuncias());
 
         List<OcorrenciaResponse.FotoResponse> fotosResponse = null;
         if (ocorrencia.getFotos() != null && !ocorrencia.getFotos().isEmpty()) {
@@ -265,6 +309,17 @@ public class OcorrenciaService {
                 .id(foto.getId())
                 .url(s3Service.gerarUrlLeitura(foto.getUrl()))
                 .build();
+    }
+
+    public Optional<OcorrenciaResponse> verificarDuplicidade(String tipoStr, String rua, String bairro) {
+        TipoOcorrencia tipo = TipoOcorrencia.valueOf(tipoStr);
+        List<StatusOcorrencia> statusAbertos = List.of(StatusOcorrencia.REGISTRADO, StatusOcorrencia.EM_PROCEDIMENTO);
+
+        return ocorrenciaRepository
+                .findAtivasPorTipoEEndereco(tipo, statusAbertos, rua, bairro)
+                .stream()
+                .findFirst()
+                .map(this::converterParaResponse);
     }
 
     public @Nullable List<OcorrenciaResponse> listarPorUsuarioId(Long usuarioId) {

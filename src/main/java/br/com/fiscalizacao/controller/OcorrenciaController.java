@@ -55,6 +55,26 @@ public class OcorrenciaController {
     }
 
     @Operation(
+        summary = "Apoiar ocorrência existente",
+        description = "Incrementa o contador de apoios (quantidadeDenuncias) de uma ocorrência já existente. Retorna 409 se o cidadão já tiver apoiado antes. Requer perfil **ROLE_CIDADAO**."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Apoio registrado com sucesso",
+            content = @Content(schema = @Schema(implementation = OcorrenciaResponse.class))),
+        @ApiResponse(responseCode = "401", description = "Token JWT ausente ou inválido", content = @Content),
+        @ApiResponse(responseCode = "404", description = "Ocorrência não encontrada", content = @Content),
+        @ApiResponse(responseCode = "409", description = "Cidadão já apoiou esta ocorrência", content = @Content)
+    })
+    @SecurityRequirement(name = "Bearer Authentication")
+    @PostMapping("/{id}/apoiar")
+    public ResponseEntity<OcorrenciaResponse> apoiarOcorrencia(
+            @Parameter(description = "ID da ocorrência a ser apoiada", required = true) @PathVariable Long id) {
+        Long usuarioId = getUsuarioIdAutenticado();
+        OcorrenciaResponse response = service.apoiar(id, usuarioId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
         summary = "Listar minhas ocorrências",
         description = "Retorna todas as ocorrências registradas pelo cidadão autenticado. Requer perfil **ROLE_CIDADAO**."
     )
@@ -152,6 +172,33 @@ public class OcorrenciaController {
     }
 
     // ── PÚBLICO ───────────────────────────────────────────────────────────────
+
+    @Operation(
+        summary = "Verificar duplicidade por endereço",
+        description = """
+            Verifica se já existe uma ocorrência ativa do mesmo tipo na rua e bairro informados.
+            Retorna a ocorrência se encontrada (200) ou 404 se não houver duplicata.
+            Usado pelo frontend como fallback quando não há coordenadas GPS disponíveis.
+            **Acesso público**, não requer autenticação.
+            """
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Ocorrência ativa encontrada no endereço",
+            content = @Content(schema = @Schema(implementation = OcorrenciaResponse.class))),
+        @ApiResponse(responseCode = "404", description = "Nenhuma ocorrência ativa do tipo no endereço", content = @Content)
+    })
+    @GetMapping("/verificar")
+    public ResponseEntity<OcorrenciaResponse> verificarDuplicidade(
+            @Parameter(description = "Tipo da ocorrência (ex: BURACO_VIA_PUBLICA)", required = true)
+            @RequestParam String tipo,
+            @Parameter(description = "Nome da rua", required = true)
+            @RequestParam String rua,
+            @Parameter(description = "Nome do bairro", required = true)
+            @RequestParam String bairro) {
+        return service.verificarDuplicidade(tipo, rua, bairro)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 
     @Operation(
         summary = "Listar ocorrências para mapa",

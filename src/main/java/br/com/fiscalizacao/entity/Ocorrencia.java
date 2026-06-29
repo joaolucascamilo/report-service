@@ -7,7 +7,9 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "ocorrencia")
@@ -45,6 +47,12 @@ public class Ocorrencia {
     private Integer quantidadeDenuncias;
 
     private String detalhes;
+
+    @Builder.Default
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "ocorrencia_apoiadores", joinColumns = @JoinColumn(name = "ocorrencia_id"))
+    @Column(name = "usuario_id")
+    private Set<Long> apoiadores = new HashSet<>();
 
     // relacionamento com fotos
     @OneToMany(

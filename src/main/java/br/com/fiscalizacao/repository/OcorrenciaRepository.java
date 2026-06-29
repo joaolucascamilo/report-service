@@ -28,4 +28,17 @@ public interface OcorrenciaRepository extends JpaRepository<Ocorrencia, Long> {
     @Query("SELECT o FROM Ocorrencia o " +
             "WHERE o.usuarioId = :usuarioId")
     List<Ocorrencia> findByUsuarioId(@Param("usuarioId") Long usuarioId);
+
+    @Query("SELECT o FROM Ocorrencia o " +
+            "WHERE o.tipo = :tipo " +
+            "AND o.status IN :statusAbertos " +
+            "AND LOWER(o.endereco.rua) = LOWER(:rua) " +
+            "AND LOWER(o.endereco.bairro) = LOWER(:bairro) " +
+            "ORDER BY o.data DESC")
+    List<Ocorrencia> findAtivasPorTipoEEndereco(
+            @Param("tipo") TipoOcorrencia tipo,
+            @Param("statusAbertos") List<StatusOcorrencia> statusAbertos,
+            @Param("rua") String rua,
+            @Param("bairro") String bairro
+    );
 }
