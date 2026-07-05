@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.Map;
 
-@FeignClient(name = "ms-geo", url = "http://localhost:8084")
+@FeignClient(name = "ms-geo", url = "${ms-geo.url}")
 public interface GeoClient {
 
     @PostMapping("/api/geo/ocorrencias")
